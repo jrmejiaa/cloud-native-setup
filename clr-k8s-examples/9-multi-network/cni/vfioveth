@@ -30,28 +30,33 @@ ipam() {
 
 add_pair_ns() {
 	vfpci=$(echo $CNI_CONF | jq -r '.deviceID')
-	#vlan=$(echo $CNI_CONF | jq -r '.vlan')
-	#pf_vlan=$(readlink /sys/devices/pci*/*/$vfpci/physfn | awk '{print substr($1,4)}')
-	#idx_vlan=$(ls -l /sys/devices/pci*/*/$pf_vlan | awk -v vf=$vfpci 'substr($11,4)==vf {print substr($9,7)}')
+	vlan=$(echo $CNI_CONF | jq -r '.vlan')
+	local pf_vlan=$(readlink /sys/devices/pci*/*/$vfpci/physfn | awk '{print substr($1,4)}')
+	local pfName=$(ls /sys/devices/pci*/*/$pf/net/ | head -1)
+	local idx_vlan=$(ls -l /sys/devices/pci*/*/$pf_vlan | awk -v vf=$vfpci 'substr($11,4)==vf {print substr($9,7)}')
 	mac=$(get_mac_with_vfpci $vfpci)
 	peer=$(get_peer_name $CNI_IFNAME)
 	ip=$1
 
 	mkdir -p /var/run/netns/
 	ln -sfT $CNI_NETNS /var/run/netns/$CNI_CONTAINERID
-
+	
+	ip netns exec $CNI_CONTAINERID ip link set $pfName vf $idx_vlan vlan $vlan	
+	
 	ip netns exec $CNI_CONTAINERID ip link add $CNI_IFNAME type veth peer name $peer
 	ip netns exec $CNI_CONTAINERID ip link set $CNI_IFNAME addr $mac up alias $vfpci
 	ip netns exec $CNI_CONTAINERID ip link set $peer up
 	ip netns exec $CNI_CONTAINERID ip addr add $ip dev $CNI_IFNAME
-	#ip netns exec $CNI_CONTAINERID ip link set $CNI_IFNAME vf $idx_vlan vlan $vlan
 }
 
 delete_pair_ns() {
-	#local vfpciDel=$(echo $CNI_CONF | jq -r '.deviceID')
-	#local pf_vlanDel=$(readlink /sys/devices/pci*/*/$vfpciDel/physfn | awk '{print substr($1,4)}')
-	#local idx_vlanDel=$(ls -l /sys/devices/pci*/*/$pf_vlanDel | awk -v vf=$vfpciDel 'substr($11,4)==vf {print substr($9,7)}')
-	#ip netns exec $CNI_CONTAINERID ip link set $CNI_IFNAME vf $idx_vlanDel vlan 0
+	local vfpciDel=$(echo $CNI_CONF | jq -r '.deviceID')
+	# Delete to VLAN ID
+	local pf_vlanDel=$(readlink /sys/devices/pci*/*/$vfpciDel/physfn | awk '{print substr($1,4)}')
+	local pfName=$(ls /sys/devices/pci*/*/$pf/net/ | head -1)
+	local idx_vlanDel=$(ls -l /sys/devices/pci*/*/$pf_vlanDel | awk -v vf=$vfpciDel 'substr($11,4)==vf {print substr($9,7)}')
+	ip netns exec $CNI_CONTAINERID ip link set $pfName vf $idx_vlanDel vlan 0
+	
 	ip netns exec $CNI_CONTAINERID ip link del $CNI_IFNAME
 }
 
