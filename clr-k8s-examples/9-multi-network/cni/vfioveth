@@ -41,7 +41,7 @@ add_pair_ns() {
 	mkdir -p /var/run/netns/
 	ln -sfT $CNI_NETNS /var/run/netns/$CNI_CONTAINERID
 	
-	ip netns exec $CNI_CONTAINERID ip link set $pfName vf $idx_vlan vlan $vlan	
+	ip link set $pfName vf $idx_vlan vlan $vlan
 	
 	ip netns exec $CNI_CONTAINERID ip link add $CNI_IFNAME type veth peer name $peer
 	ip netns exec $CNI_CONTAINERID ip link set $CNI_IFNAME addr $mac up alias $vfpci
@@ -55,7 +55,7 @@ delete_pair_ns() {
 	local pf_vlanDel=$(readlink /sys/devices/pci*/*/$vfpciDel/physfn | awk '{print substr($1,4)}')
 	local pfName=$(ls /sys/devices/pci*/*/$pf/net/ | head -1)
 	local idx_vlanDel=$(ls -l /sys/devices/pci*/*/$pf_vlanDel | awk -v vf=$vfpciDel 'substr($11,4)==vf {print substr($9,7)}')
-	ip netns exec $CNI_CONTAINERID ip link set $pfName vf $idx_vlanDel vlan 0
+	ip link set $pfName vf $idx_vlanDel vlan 0
 	
 	ip netns exec $CNI_CONTAINERID ip link del $CNI_IFNAME
 }
